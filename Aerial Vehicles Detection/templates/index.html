@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AerialDetect</title>
+  <link rel="stylesheet" href="../static/style.css" />
+</head>
+<body>
+<div class="layout">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header__brand">
+      <div class="header__logo">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+      </div>
+      <div>
+        <div class="header__name">AerialDetect</div>
+        <div class="header__sub">YOLOv8 · Transfer Learning</div>
+      </div>
+    </div>
+    <nav class="header__nav">
+      <button class="nav-btn nav-btn--active" data-tab="detect" onclick="switchTab('detect')">Detect</button>
+      <button class="nav-btn" data-tab="metrics" onclick="switchTab('metrics')">Metrics</button>
+    </nav>
+    <div class="header__status">
+      <div class="status-dot status-dot--amber" id="status-dot"></div>
+      <span class="status-text" id="status-text">connecting...</span>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- DETECT TAB -->
+    <div id="tab-detect" class="detect-grid">
+
+      <!-- Left: Upload -->
+      <div class="panel">
+        <div class="panel__header">
+          <span class="tag tag-blue">input</span>
+          <span class="panel__title">Upload Image</span>
+        </div>
+
+        <div class="upload-zone" id="upload-zone"
+             onclick="document.getElementById('file-input').click()"
+             ondragover="onDragOver(event)"
+             ondragleave="onDragLeave(event)"
+             ondrop="onDrop(event)">
+          <input type="file" id="file-input" class="upload-zone__input" accept="image/*" onchange="onFileChange(event)" />
+          <div id="upload-idle">
+            <div class="upload-zone__icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </div>
+            <p class="upload-zone__text">Drop an aerial image or <span class="upload-zone__link">click to upload</span></p>
+            <p class="upload-zone__sub">JPG · PNG · WEBP</p>
+          </div>
+          <div id="upload-loading" style="display:none;">
+            <div class="spinner"></div>
+            <p class="upload-zone__loading-text">Running detection...</p>
+          </div>
+        </div>
+
+        <div id="preview-area" style="display:none;">
+          <img id="preview-img" class="preview-img" alt="preview" />
+          <button class="run-btn" onclick="runDetection()">Run Detection</button>
+        </div>
+
+        <div id="error-box" class="alert alert--error" style="display:none;"></div>
+      </div>
+
+      <!-- Right: Results -->
+      <div class="panel">
+        <div class="panel__header">
+          <span class="tag tag-green">output</span>
+          <span class="panel__title">Detection Result</span>
+          <span class="result-count" id="result-count" style="display:none;"></span>
+        </div>
+
+        <div id="result-placeholder" class="card result-placeholder">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#d0dce8" stroke-width="1.5" stroke-linecap="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+          <p class="placeholder-text">Detection results will appear here</p>
+        </div>
+
+        <div id="result-area" class="result-area fadein" style="display:none;">
+          <img id="result-img" class="preview-img" alt="annotated result" />
+          <div class="detections-list" id="detections-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- METRICS TAB -->
+    <div id="tab-metrics" style="display:none;" class="metrics-view">
+      <div class="panel__header">
+        <span class="tag tag-blue">evaluation</span>
+        <span class="panel__title">Model Performance</span>
+      </div>
+
+      <div id="metrics-loading" class="spinner-center"><div class="spinner"></div></div>
+
+      <div id="metrics-content" style="display:none;">
+        <div class="metrics-grid">
+          <div class="metric-box metric-box--blue">
+            <div class="metric-box__value" id="m-precision">—</div>
+            <div class="metric-box__label">Precision</div>
+          </div>
+          <div class="metric-box metric-box--green">
+            <div class="metric-box__value" id="m-recall">—</div>
+            <div class="metric-box__label">Recall</div>
+          </div>
+          <div class="metric-box metric-box--amber">
+            <div class="metric-box__value" id="m-map50">—</div>
+            <div class="metric-box__label">mAP@0.5</div>
+          </div>
+          <div class="metric-box metric-box--navy">
+            <div class="metric-box__value" id="m-map5095">—</div>
+            <div class="metric-box__label">mAP@0.5:0.95</div>
+          </div>
+        </div>
+
+        <div id="metrics-warning" class="alert alert--warning" style="display:none;"></div>
+
+        <div class="card">
+          <div class="training-stats">
+            <div class="training-stat">
+              <div class="training-stat__value training-stat__value--navy" id="m-epochs">—</div>
+              <div class="training-stat__label">Total Epochs</div>
+            </div>
+            <div class="training-stat">
+              <div class="training-stat__value training-stat__value--blue" id="m-boxloss">—</div>
+              <div class="training-stat__label">Box Loss (final)</div>
+            </div>
+            <div class="training-stat">
+              <div class="training-stat__value training-stat__value--red" id="m-clsloss">—</div>
+              <div class="training-stat__label">Class Loss (final)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <p class="info-text">
+            Training curve images (BoxF1_curve.png, BoxPR_curve.png, confusion_matrix.png)
+            are saved in your training output folder and can be viewed directly in PyCharm.
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <span>AmirAli Sotoudeh Rad — Thesis Project — University of Europe for Applied Sciences</span>
+    <span>YOLOv8 Transfer Learning · Aerial Object Detection</span>
+  </footer>
+
+</div>
+<script src="../static/script.js"></script>
+</body>
+</html>
